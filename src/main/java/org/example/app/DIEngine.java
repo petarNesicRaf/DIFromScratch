@@ -30,13 +30,15 @@ public class DIEngine {
         }
         ComponentScan componentScan = clazz.getAnnotation(ComponentScan.class);
         String packageValue = componentScan.value();
-        //brise duplikate klasa
+        //izvlaci klase iz paketa
         Set<Class<?>> classes = findClasses(packageValue);
 
         for (Class<?> loadingClass: classes)
         {
             try{
-                if(loadingClass.isAnnotationPresent(Component.class) || loadingClass.isAnnotationPresent(Bean.class))
+                if(loadingClass.isAnnotationPresent(Component.class) || loadingClass.isAnnotationPresent(Bean.class)
+                        || loadingClass.isAnnotationPresent(Service.class)
+                )
                 {
                     Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                     Object newInstance = constructor.newInstance();
@@ -64,8 +66,16 @@ public class DIEngine {
                 injectAnnotatedFields(objectPrototype, declaredFields);
                 return objectPrototype;
             }
-        }
+        }else if(clazz.isAnnotationPresent(Component.class))
+        {
+            Constructor<?> constructor = clazz.getConstructor();
+            T objectPrototype = (T)constructor.newInstance();
 
+            Field[] declaredFields = clazz.getDeclaredFields();
+            injectAnnotatedFields(objectPrototype, declaredFields);
+            return objectPrototype;
+        }
+        //ukoliko je klasa oznacena sa bilo kojom singleton anotacijom
         T object = (T)objectMap.get(clazz);
 
         Field[] declaredFields = clazz.getDeclaredFields();

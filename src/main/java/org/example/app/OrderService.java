@@ -3,8 +3,9 @@ package org.example.app;
 import org.example.annotations.AutoWired;
 import org.example.annotations.Bean;
 import org.example.annotations.Component;
+import org.example.annotations.Service;
 
-@Bean(scope = false)
+@Service
 public class OrderService {
 
     @AutoWired(verbose = true)
