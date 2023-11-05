@@ -1,9 +1,6 @@
 package org.example.app;
 
-import org.example.annotations.AutoWired;
-import org.example.annotations.Component;
-import org.example.annotations.ComponentScan;
-import org.example.annotations.Configuration;
+import org.example.annotations.*;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -39,7 +36,7 @@ public class DIEngine {
         for (Class<?> loadingClass: classes)
         {
             try{
-                if(loadingClass.isAnnotationPresent(Component.class))
+                if(loadingClass.isAnnotationPresent(Component.class) || loadingClass.isAnnotationPresent(Bean.class))
                 {
                     Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                     Object newInstance = constructor.newInstance();
@@ -54,6 +51,21 @@ public class DIEngine {
     //vraca objekat klase koji je prosledjen i injectuje sve atribute te klase
     public <T> T getInstance(Class<T> clazz) throws Exception{
 
+        if(clazz.isAnnotationPresent(Bean.class))
+        {
+            Bean bean = clazz.getAnnotation(Bean.class);
+            //kreira novi bean objekat ukoliko bean nije parametrizovan kao singleton
+            if(!bean.scope())
+            {
+                Constructor<?> constructor = clazz.getConstructor();
+                T objectPrototype = (T)constructor.newInstance();
+
+                Field[] declaredFields = clazz.getDeclaredFields();
+                injectAnnotatedFields(objectPrototype, declaredFields);
+                return objectPrototype;
+            }
+        }
+
         T object = (T)objectMap.get(clazz);
 
         Field[] declaredFields = clazz.getDeclaredFields();
@@ -62,7 +74,7 @@ public class DIEngine {
         return object;
     }
 
-    //
+    //prolazi kroz sve atribute koji su anotirani i rekurzivno injectuje
     private <T> void injectAnnotatedFields(T object, Field[] declaredFields) throws Exception{
         for (Field field : declaredFields)
         {

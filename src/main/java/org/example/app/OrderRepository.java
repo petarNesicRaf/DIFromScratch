@@ -1,10 +1,11 @@
 package org.example.app;
 
+import org.example.annotations.Bean;
 import org.example.annotations.Component;
 
 import java.util.HashMap;
 import java.util.Map;
-@Component
+@Bean(scope = false)
 public class OrderRepository {
     Map<Integer, Order> orderIdToOrderMap = new HashMap<>();
 
