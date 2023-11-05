@@ -1,7 +1,9 @@
 package org.example.app;
 
 import org.example.annotations.AutoWired;
+import org.example.annotations.Component;
 
+@Component
 public class OrderService {
 
     @AutoWired(verbose = true)

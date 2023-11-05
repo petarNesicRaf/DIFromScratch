@@ -1,8 +1,10 @@
 package org.example.app;
 
+import org.example.annotations.Component;
+
 import java.util.HashMap;
 import java.util.Map;
-
+@Component
 public class OrderRepository {
     Map<Integer, Order> orderIdToOrderMap = new HashMap<>();
 
