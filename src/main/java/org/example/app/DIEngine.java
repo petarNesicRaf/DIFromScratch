@@ -23,6 +23,7 @@ public class DIEngine {
     private Map<String, Route> routesMap = new HashMap<>();
     private Set<Object> controllerObjectSet = new HashSet<>();
 
+
     DIEngine(Class<?> clazz)
     {
         initializeEngine(clazz);
@@ -108,7 +109,6 @@ public class DIEngine {
         return object;
     }
 
-    //todo dodaj za bean, service, component field
     //prolazi kroz sve atribute koji su anotirani i rekurzivno injectuje
     private <T> void injectAnnotatedFields(T object, Field[] declaredFields) throws Exception{
         for (Field field : declaredFields)
@@ -145,7 +145,6 @@ public class DIEngine {
 
     private void insertRoutes(Set<Class<?>> controllerSet)
     {
-
         for (Class<?> contr : controllerSet) {
             try {
                 //instanciranje svakog kontrolera i dodavanje njegovih anotacija
@@ -156,7 +155,7 @@ public class DIEngine {
 
                 Method[] methods = contr.getDeclaredMethods();
 
-                //prolaz kroz metode, kreiranje ruta i dodavanje u mapu controller-ruta
+                //prolaz kroz metode, kreiranje ruta i dodavanje u mapu controller-ruta string ruta
                 for (Method method : methods) {
 
                     String route = "";
@@ -164,12 +163,13 @@ public class DIEngine {
                         if (method.isAnnotationPresent(Path.class)) {
 
                             if (method.isAnnotationPresent(GET.class)) {
-                                route = "GET:" + contr.getAnnotation(Controller.class).path() + "/" + method.getAnnotation(Path.class).path();
+                                route = "GET:" + contr.getAnnotation(Controller.class).path()  + method.getAnnotation(Path.class).path();
                                 System.out.println(route);
                             } else if (method.isAnnotationPresent(POST.class)) {
-                                route = "POST:" + contr.getAnnotation(Controller.class).path() + "/" + method.getAnnotation(Path.class).path();
+                                route = "POST:" + contr.getAnnotation(Controller.class).path()  + method.getAnnotation(Path.class).path();
                                 System.out.println(route);
                             }
+
                             Route controllerRoute = new Route(newInstance, method);
                             this.routesMap.put(route, controllerRoute);
                         }
@@ -182,6 +182,10 @@ public class DIEngine {
 
     }
 
+    public Route getRoute(String path)
+    {
+        return this.routesMap.get(path);
+    }
     private Set<Class<?>> findClasses(String packageName) {
         InputStream stream = ClassLoader.getSystemClassLoader()
                 .getResourceAsStream(packageName.replaceAll("[.]", "/"));

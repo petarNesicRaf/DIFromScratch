@@ -8,7 +8,6 @@ import org.example.annotations.Service;
 @Service
 public class OrderService {
 
-    @AutoWired(verbose = true)
     private OrderRepository repository;
 
     public Order getOrderDetails(Integer orderId) {

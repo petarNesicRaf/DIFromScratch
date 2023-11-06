@@ -12,7 +12,7 @@ public class Route {
         this.method = method;
     }
 
-    public Object invokeMethod(Request request) {
+    public Object invokeMethod(String placeholder) {
 
         Class<?>[] params = method.getParameterTypes();
 
@@ -23,10 +23,11 @@ public class Route {
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
-        } else if (params.length == 1 && params[0].equals(Request.class)) {
+            //todo placeholder for request
+        } else if (params.length == 1 && params[0].equals(String.class)) {
 
             try {
-                return method.invoke(controller, request);
+                return method.invoke(controller, placeholder);
             } catch (InvocationTargetException | IllegalAccessException e) {
                 e.printStackTrace();
             }
