@@ -7,15 +7,21 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DIEngine {
-    Map<Class<?>, Object> objectMap = new HashMap<>();
+    private Map<Class<?>, Object> objectMap = new HashMap<>();
+    private Set<Class<?>> controllerSet = new HashSet<>();
+    private Map<String, Route> routesMap = new HashMap<>();
+    private Set<Object> controllerObjectSet = new HashSet<>();
 
     DIEngine(Class<?> clazz)
     {
@@ -37,18 +43,36 @@ public class DIEngine {
         {
             try{
                 if(loadingClass.isAnnotationPresent(Component.class) || loadingClass.isAnnotationPresent(Bean.class)
-                        || loadingClass.isAnnotationPresent(Service.class)
-                )
+                        || loadingClass.isAnnotationPresent(Service.class) || loadingClass.isAnnotationPresent(Controller.class))
                 {
-                    Constructor<?> constructor = loadingClass.getDeclaredConstructor();
-                    Object newInstance = constructor.newInstance();
-                    objectMap.put(loadingClass, newInstance);
+                    if(loadingClass.isAnnotationPresent(Controller.class))
+                    {
+                        this.controllerSet.add(loadingClass);
+                    }else {
+                        //mozda treba ovde da se zove getInstance da se ne zove u main
+                        if(loadingClass.isAnnotationPresent(Service.class)){
+                            Constructor<?> constructor = loadingClass.getDeclaredConstructor();
+                            Object newInstance = constructor.newInstance();
+                            objectMap.put(loadingClass, newInstance);
+                        }
+                        else if(loadingClass.isAnnotationPresent(Bean.class))
+                        {
+                            if(loadingClass.getAnnotation(Bean.class).scope())
+                            {
+                                Constructor<?> constructor = loadingClass.getDeclaredConstructor();
+                                Object newInstance = constructor.newInstance();
+                                objectMap.put(loadingClass, newInstance);
+                            }
+                        }
+                    }
                 }
             }catch (Exception e)
             {
                 e.printStackTrace();
             }
         }
+        if(!this.controllerSet.isEmpty())
+            insertRoutes(controllerSet);
     }
     //vraca objekat klase koji je prosledjen i injectuje sve atribute te klase
     public <T> T getInstance(Class<T> clazz) throws Exception{
@@ -84,30 +108,78 @@ public class DIEngine {
         return object;
     }
 
+    //todo dodaj za bean, service, component field
     //prolazi kroz sve atribute koji su anotirani i rekurzivno injectuje
     private <T> void injectAnnotatedFields(T object, Field[] declaredFields) throws Exception{
         for (Field field : declaredFields)
         {
-            if(field.isAnnotationPresent(AutoWired.class))
-            {
+            if(field.isAnnotationPresent(AutoWired.class)) {
                 AutoWired autoWired = field.getAnnotation(AutoWired.class);
 
-                if(autoWired.verbose()) {
+                if (autoWired.verbose()) {
                     LocalDateTime currDate = LocalDateTime.now();
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-                    System.out.println("Initialized " + field.getType() + " " + field.getName() + " in " + field.getDeclaringClass() + " on " + currDate.format(formatter)+ " with " + field.hashCode());
+                    System.out.println("Initialized " + field.getType() + " " + field.getName() + " in " + field.getDeclaringClass() + " on " + currDate.format(formatter) + " with " + field.hashCode());
                 }
 
                 field.setAccessible(true);
                 Class<?> type = field.getType();
                 Object innerObject = objectMap.get(type);
-
-                field.set(object, innerObject);
                 //rekurzivan prolaz kroz klasu atributa koji je oznacen sa @AutoWired
-                injectAnnotatedFields(innerObject, type.getDeclaredFields());
+                if (innerObject == null){
+                    //ukoliko objekat nije singleton onda nije u mapi, kreira se novi objekat
+                    //prolazi se kroz anotacije tog novog objekta
+                    Constructor<?> constructor = type.getDeclaredConstructor();
+                    Object innerObject1 = constructor.newInstance();
+                    field.set(object,innerObject1);
+                    injectAnnotatedFields(innerObject1, type.getDeclaredFields());
+                }else{
+                    //ukoliko objekat jeste singleton nalazi se u mapi
+                    field.set(object, innerObject);
+                    injectAnnotatedFields(innerObject, type.getDeclaredFields());
+                }
             }
         }
+    }
+
+    private void insertRoutes(Set<Class<?>> controllerSet)
+    {
+
+        for (Class<?> contr : controllerSet) {
+            try {
+                //instanciranje svakog kontrolera i dodavanje njegovih anotacija
+                Constructor<?>constructor = contr.getDeclaredConstructor();
+                Object newInstance = constructor.newInstance();
+                //rekurzivno dodavanje anotacija kontroleru
+                injectAnnotatedFields(newInstance, contr.getDeclaredFields());
+
+                Method[] methods = contr.getDeclaredMethods();
+
+                //prolaz kroz metode, kreiranje ruta i dodavanje u mapu controller-ruta
+                for (Method method : methods) {
+
+                    String route = "";
+                    if (contr.isAnnotationPresent(Controller.class)) {
+                        if (method.isAnnotationPresent(Path.class)) {
+
+                            if (method.isAnnotationPresent(GET.class)) {
+                                route = "GET:" + contr.getAnnotation(Controller.class).path() + "/" + method.getAnnotation(Path.class).path();
+                                System.out.println(route);
+                            } else if (method.isAnnotationPresent(POST.class)) {
+                                route = "POST:" + contr.getAnnotation(Controller.class).path() + "/" + method.getAnnotation(Path.class).path();
+                                System.out.println(route);
+                            }
+                            Route controllerRoute = new Route(newInstance, method);
+                            this.routesMap.put(route, controllerRoute);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
     }
 
     private Set<Class<?>> findClasses(String packageName) {
@@ -130,4 +202,35 @@ public class DIEngine {
         return null;
     }
 
+    public Map<Class<?>, Object> getObjectMap() {
+        return objectMap;
+    }
+
+    public void setObjectMap(Map<Class<?>, Object> objectMap) {
+        this.objectMap = objectMap;
+    }
+
+    public Set<Class<?>> getControllerSet() {
+        return controllerSet;
+    }
+
+    public void setControllerSet(Set<Class<?>> controllerSet) {
+        this.controllerSet = controllerSet;
+    }
+
+    public Map<String, Route> getRoutesMap() {
+        return routesMap;
+    }
+
+    public void setRoutesMap(Map<String, Route> routesMap) {
+        this.routesMap = routesMap;
+    }
+
+    public Set<Object> getControllerObjectSet() {
+        return controllerObjectSet;
+    }
+
+    public void setControllerObjectSet(Set<Object> controllerObjectSet) {
+        this.controllerObjectSet = controllerObjectSet;
+    }
 }
