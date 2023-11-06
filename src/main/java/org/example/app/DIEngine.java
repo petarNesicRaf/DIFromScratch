@@ -22,13 +22,22 @@ public class DIEngine {
     private Set<Class<?>> controllerSet = new HashSet<>();
     private Map<String, Route> routesMap = new HashMap<>();
     private Set<Object> controllerObjectSet = new HashSet<>();
+    private Set<Class<?>> qualifiersSet = new HashSet<>();
+    private static DIEngine instance=null;
 
-
-    DIEngine(Class<?> clazz)
+    private DIEngine(Class<?> clazz)
     {
-        initializeEngine(clazz);
+            initializeEngine(clazz);
+            DIContainer.getInstance().addQualifiers(qualifiersSet);
+    }
+    public static DIEngine getInstance()
+    {
+        if(instance==null) instance = new DIEngine(ApplicationConfig.class);
+
+        return instance;
     }
 
+    //inicijalizacija engine-a citanje klasa iz paketa i procesuiranje anotacija
     private void initializeEngine(Class<?> clazz)
     {
         if(!clazz.isAnnotationPresent(Configuration.class))
@@ -44,17 +53,25 @@ public class DIEngine {
         {
             try{
                 if(loadingClass.isAnnotationPresent(Component.class) || loadingClass.isAnnotationPresent(Bean.class)
-                        || loadingClass.isAnnotationPresent(Service.class) || loadingClass.isAnnotationPresent(Controller.class))
+                        || loadingClass.isAnnotationPresent(Service.class) || loadingClass.isAnnotationPresent(Controller.class) || loadingClass.isAnnotationPresent(Qualifier.class))
                 {
+                    //ukoliko je klasa anotirana sa Qualifier
+                    if(loadingClass.isAnnotationPresent(Qualifier.class))
+                    {
+                        this.qualifiersSet.add(loadingClass);
+                    }
+
                     if(loadingClass.isAnnotationPresent(Controller.class))
                     {
                         this.controllerSet.add(loadingClass);
                     }else {
                         //mozda treba ovde da se zove getInstance da se ne zove u main
+
                         if(loadingClass.isAnnotationPresent(Service.class)){
                             Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                             Object newInstance = constructor.newInstance();
                             objectMap.put(loadingClass, newInstance);
+                            injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
                         }
                         else if(loadingClass.isAnnotationPresent(Bean.class))
                         {
@@ -63,8 +80,10 @@ public class DIEngine {
                                 Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                                 Object newInstance = constructor.newInstance();
                                 objectMap.put(loadingClass, newInstance);
+                                injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
                             }
                         }
+                        //todo component
                     }
                 }
             }catch (Exception e)
@@ -121,6 +140,11 @@ public class DIEngine {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
                     System.out.println("Initialized " + field.getType() + " " + field.getName() + " in " + field.getDeclaringClass() + " on " + currDate.format(formatter) + " with " + field.hashCode());
+                }
+                //ukoliko je atribut anotiran sa qualifier uz autowired
+                if(field.isAnnotationPresent(Qualifier.class))
+                {
+                    this.qualifiersSet.add(field.getType());
                 }
 
                 field.setAccessible(true);
@@ -204,37 +228,5 @@ public class DIEngine {
             e.printStackTrace();
         }
         return null;
-    }
-
-    public Map<Class<?>, Object> getObjectMap() {
-        return objectMap;
-    }
-
-    public void setObjectMap(Map<Class<?>, Object> objectMap) {
-        this.objectMap = objectMap;
-    }
-
-    public Set<Class<?>> getControllerSet() {
-        return controllerSet;
-    }
-
-    public void setControllerSet(Set<Class<?>> controllerSet) {
-        this.controllerSet = controllerSet;
-    }
-
-    public Map<String, Route> getRoutesMap() {
-        return routesMap;
-    }
-
-    public void setRoutesMap(Map<String, Route> routesMap) {
-        this.routesMap = routesMap;
-    }
-
-    public Set<Object> getControllerObjectSet() {
-        return controllerObjectSet;
-    }
-
-    public void setControllerObjectSet(Set<Object> controllerObjectSet) {
-        this.controllerObjectSet = controllerObjectSet;
     }
 }
