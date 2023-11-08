@@ -1,5 +1,7 @@
 package org.example.app;
 
+import org.example.framework.request.Request;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -12,7 +14,7 @@ public class Route {
         this.method = method;
     }
 
-    public Object invokeMethod(String placeholder) {
+    public Object invokeMethod(Request request) {
 
         Class<?>[] params = method.getParameterTypes();
 
@@ -23,11 +25,10 @@ public class Route {
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
-            //todo placeholder for request
-        } else if (params.length == 1 && params[0].equals(String.class)) {
+        } else if (params.length == 1 && params[0].equals(Request.class)) {
 
             try {
-                return method.invoke(controller, placeholder);
+                return method.invoke(controller, request);
             } catch (InvocationTargetException | IllegalAccessException e) {
                 e.printStackTrace();
             }

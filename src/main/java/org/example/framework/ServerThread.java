@@ -2,6 +2,8 @@ package org.example.framework;
 
 
 
+import org.example.app.DIEngine;
+import org.example.app.Route;
 import org.example.framework.request.Header;
 import org.example.framework.request.Helper;
 import org.example.framework.request.Request;
@@ -52,13 +54,20 @@ public class ServerThread implements Runnable{
 
 
             // Response example
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("route_location", request.getLocation());
-            responseMap.put("route_method", request.getMethod().toString());
-            responseMap.put("parameters", request.getParameters());
-            Response response = new JsonResponse(responseMap);
+            //Map<String, Object> responseMap = new HashMap<>();
+            //responseMap.put("route_location", request.getLocation());
+            //responseMap.put("route_method", request.getMethod().toString());
+            //responseMap.put("parameters", request.getParameters());
+            //Response response = new JsonResponse(responseMap);
+            String path = request.getMethod() + ":" + request.getLocation().split("\\?")[0];
+            Route route = DIEngine.getInstance().getRoute(path);
+            Object response = null;
 
-            out.println(response.render());
+            if (route != null)
+                response = route.invokeMethod(request);
+
+            if (response instanceof Response)
+                out.println(((Response) response).render());
 
             in.close();
             out.close();

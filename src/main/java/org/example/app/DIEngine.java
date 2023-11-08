@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -95,7 +94,7 @@ public class DIEngine {
             insertRoutes(controllerSet);
     }
     //vraca objekat klase koji je prosledjen i injectuje sve atribute te klase
-    public <T> T getInstance(Class<T> clazz) throws Exception{
+    public <T> T grabInstance(Class<T> clazz) throws Exception{
 
         if(clazz.isAnnotationPresent(Bean.class))
         {
@@ -228,5 +227,10 @@ public class DIEngine {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public Object get(Class<?> clazz)
+    {
+        return this.objectMap.get(clazz);
     }
 }
