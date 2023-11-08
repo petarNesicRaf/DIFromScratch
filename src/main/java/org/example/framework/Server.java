@@ -14,8 +14,14 @@ public class Server {
     public static void main(String[] args) throws IOException {
 
         try {
+
             DIEngine diEngine = DIEngine.getInstance();
+            //provera prototype objekta
             HttpService service = (HttpService) diEngine.get(HttpService.class);
+            service.printRepository();
+            HttpService service1 = (HttpService) diEngine.get(HttpService.class);
+            service1.getHttpRepository().getList().add("PATCH");
+            service1.printRepository();
             service.printRepository();
             ServerSocket serverSocket = new ServerSocket(TCP_PORT);
             System.out.println("Server is running at http://localhost:"+TCP_PORT);

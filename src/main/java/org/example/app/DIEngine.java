@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,7 +21,7 @@ public class DIEngine {
     private Map<Class<?>, Object> objectMap = new HashMap<>();
     private Set<Class<?>> controllerSet = new HashSet<>();
     private Map<String, Route> routesMap = new HashMap<>();
-    private Set<Object> controllerObjectSet = new HashSet<>();
+
     private Set<Class<?>> qualifiersSet = new HashSet<>();
     private static DIEngine instance=null;
 
@@ -69,8 +70,10 @@ public class DIEngine {
                         if(loadingClass.isAnnotationPresent(Service.class)){
                             Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                             Object newInstance = constructor.newInstance();
-                            objectMap.put(loadingClass, newInstance);
-                            injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
+                            if(!objectMap.containsKey(loadingClass)) {
+                                objectMap.put(loadingClass, newInstance);
+                                injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
+                            }
                         }
                         else if(loadingClass.isAnnotationPresent(Bean.class))
                         {
@@ -78,11 +81,12 @@ public class DIEngine {
                             {
                                 Constructor<?> constructor = loadingClass.getDeclaredConstructor();
                                 Object newInstance = constructor.newInstance();
-                                objectMap.put(loadingClass, newInstance);
-                                injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
+                                if(!objectMap.containsKey(loadingClass)) {
+                                    objectMap.put(loadingClass, newInstance);
+                                    injectAnnotatedFields(newInstance, loadingClass.getDeclaredFields());
+                                }
                             }
                         }
-                        //todo component
                     }
                 }
             }catch (Exception e)
@@ -92,39 +96,6 @@ public class DIEngine {
         }
         if(!this.controllerSet.isEmpty())
             insertRoutes(controllerSet);
-    }
-    //vraca objekat klase koji je prosledjen i injectuje sve atribute te klase
-    public <T> T grabInstance(Class<T> clazz) throws Exception{
-
-        if(clazz.isAnnotationPresent(Bean.class))
-        {
-            Bean bean = clazz.getAnnotation(Bean.class);
-            //kreira novi bean objekat ukoliko bean nije parametrizovan kao singleton
-            if(!bean.scope())
-            {
-                Constructor<?> constructor = clazz.getConstructor();
-                T objectPrototype = (T)constructor.newInstance();
-
-                Field[] declaredFields = clazz.getDeclaredFields();
-                injectAnnotatedFields(objectPrototype, declaredFields);
-                return objectPrototype;
-            }
-        }else if(clazz.isAnnotationPresent(Component.class))
-        {
-            Constructor<?> constructor = clazz.getConstructor();
-            T objectPrototype = (T)constructor.newInstance();
-
-            Field[] declaredFields = clazz.getDeclaredFields();
-            injectAnnotatedFields(objectPrototype, declaredFields);
-            return objectPrototype;
-        }
-        //ukoliko je klasa oznacena sa bilo kojom singleton anotacijom
-        T object = (T)objectMap.get(clazz);
-
-        Field[] declaredFields = clazz.getDeclaredFields();
-        injectAnnotatedFields(object, declaredFields);
-
-        return object;
     }
 
     //prolazi kroz sve atribute koji su anotirani i rekurzivno injectuje
@@ -231,6 +202,23 @@ public class DIEngine {
 
     public Object get(Class<?> clazz)
     {
+        // ukoliko objekat nije singleton
+        try {
+            if (clazz.isAnnotationPresent(Component.class)) {
+                Constructor constructor = clazz.getDeclaredConstructor();
+                Object object = constructor.newInstance();
+                injectAnnotatedFields(object, clazz.getDeclaredFields());
+                return object;
+            } else if (clazz.isAnnotationPresent(Bean.class) && !clazz.getAnnotation(Bean.class).scope()) {
+                Constructor constructor = clazz.getDeclaredConstructor();
+                Object object = constructor.newInstance();
+                injectAnnotatedFields(object, clazz.getDeclaredFields());
+                return object;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         return this.objectMap.get(clazz);
     }
 }
